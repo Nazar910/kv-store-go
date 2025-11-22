@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"kv-store/store"
 	"net/http"
 )
@@ -26,6 +25,14 @@ type GetReq struct {
 	Key string `json:"key" validate:"required,min=1,max=100"`
 }
 
+type GetRes struct {
+	Value string `json:"value"`
+}
+
+type ExistsRes struct {
+	Exists bool `json:"exists"`
+}
+
 func (s *Server) Start() {
 	http.HandleFunc("POST /set", func(w http.ResponseWriter, r *http.Request) {
 		var setReq SetReq
@@ -42,9 +49,21 @@ func (s *Server) Start() {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
-		fmt.Printf("In here: %s \n", getReq.Key)
 		value, _ := s.store.Get(getReq.Key)
-		w.Write([]byte(value))
+		w.Header().Set("Content-Type", "application/json")
+		res := &GetRes{Value: value}
+		json.NewEncoder(w).Encode(res)
+	})
+	http.HandleFunc("POST /exists", func(w http.ResponseWriter, r *http.Request) {
+		var getReq GetReq
+		if err := json.NewDecoder(r.Body).Decode(&getReq); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		value := s.store.Exists(getReq.Key)
+		w.Header().Set("Content-Type", "application/json")
+		res := &ExistsRes{Exists: value}
+		json.NewEncoder(w).Encode(res)
 	})
 	http.ListenAndServe(":3001", nil)
 }
