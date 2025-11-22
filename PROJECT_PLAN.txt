@@ -1,0 +1,108 @@
+KEY-VALUE STORE DATABASE - LEARNING PROJECT PLAN
+=================================================
+
+PHASE 1: Basic In-Memory Store
+-------------------------------
+Goal: Get a working prototype with core functionality
+
+Tasks:
+- Implement basic data structure using Go's map[string]interface{}
+- Create core operations: Set(key, value), Get(key), Delete(key), Exists(key)
+- Add simple error handling
+- Write basic unit tests
+- Create a simple CLI interface for testing
+
+Key Go concepts: Maps, interfaces, error handling, testing
+
+
+PHASE 2: Concurrency & Thread Safety
+-------------------------------------
+Goal: Make your store safe for concurrent access
+
+Tasks:
+- Add sync.RWMutex for thread-safe operations
+- Implement concurrent read operations (multiple readers)
+- Ensure exclusive write operations
+- Write concurrency tests with goroutines
+- Add benchmarks to measure performance
+
+Key Go concepts: Goroutines, mutexes, channels, race detection (go test -race)
+
+
+PHASE 3: Persistence Layer
+---------------------------
+Goal: Survive restarts by saving data to disk
+
+Tasks:
+- Implement append-only log (WAL - Write-Ahead Logging)
+- Add snapshot mechanism to compact logs
+- Implement Save() and Load() operations
+- Add auto-save on shutdown
+- Handle corruption detection and recovery
+
+Key Go concepts: File I/O, encoding (JSON/GOB/binary), defer, error handling
+
+
+PHASE 4: Advanced Data Features
+--------------------------------
+Goal: Add production-ready features
+
+Tasks:
+- Implement TTL (Time-To-Live) for keys with auto-expiration
+- Add support for different data types (strings, lists, sets, hashes)
+- Implement batch operations for efficiency
+- Add transaction support (ACID properties)
+- Implement key pattern matching/iteration
+
+Key Go concepts: Time/timers, custom types, interfaces, generics (Go 1.18+)
+
+
+PHASE 5: Network Server
+------------------------
+Goal: Make it accessible over the network
+
+Tasks:
+- Implement TCP server using net package
+- Design a simple protocol (text-based or binary)
+- Handle multiple client connections
+- Add connection pooling
+- Implement graceful shutdown
+- Optional: Add HTTP/REST API or gRPC
+
+Key Go concepts: Network programming, protocols, context, graceful shutdown
+
+
+PHASE 6: Performance & Optimization
+------------------------------------
+Goal: Optimize for production workloads
+
+Tasks:
+- Add memory limits and eviction policies (LRU, LFU)
+- Implement compression for values
+- Add indexing for faster lookups
+- Create performance benchmarks
+- Profile with pprof
+- Optimize serialization format
+
+Key Go concepts: Profiling, benchmarking, memory management, optimization
+
+
+PHASE 7: Distributed Features (Advanced)
+-----------------------------------------
+Goal: Scale beyond a single machine
+
+Tasks:
+- Implement replication (master-slave)
+- Add consistent hashing for partitioning
+- Implement distributed consensus (Raft algorithm)
+- Add cluster management
+- Implement backup and restore
+- Add monitoring and metrics (Prometheus-style)
+
+Key Go concepts: Distributed systems, consensus algorithms, networking
+
+
+RECOMMENDED STARTING POINT
+---------------------------
+Start with Phase 1 and 2, which will give you a solid foundation.
+Each phase builds on the previous one, so you can iterate and improve as you learn.
