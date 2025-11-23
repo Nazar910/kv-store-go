@@ -9,5 +9,6 @@ func main() {
 	s := store.New()
 	httpServer := server.NewServer(s)
 
-	httpServer.Start()
+	httpServer.Init()
+	httpServer.Start(3001)
 }

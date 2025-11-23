@@ -2,17 +2,20 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"kv-store/store"
 	"net/http"
 )
 
 type Server struct {
 	store *store.Store
+	mutex *http.ServeMux
 }
 
 func NewServer(store *store.Store) *Server {
 	return &Server{
 		store: store,
+		mutex: http.NewServeMux(),
 	}
 }
 
@@ -33,8 +36,8 @@ type ExistsRes struct {
 	Exists bool `json:"exists"`
 }
 
-func (s *Server) Start() {
-	http.HandleFunc("POST /set", func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) Init() {
+	s.mutex.HandleFunc("POST /set", func(w http.ResponseWriter, r *http.Request) {
 		var setReq SetReq
 		if err := json.NewDecoder(r.Body).Decode(&setReq); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -43,7 +46,7 @@ func (s *Server) Start() {
 		s.store.Set(setReq.Key, setReq.Value)
 		w.Write([]byte("OK"))
 	})
-	http.HandleFunc("POST /get", func(w http.ResponseWriter, r *http.Request) {
+	s.mutex.HandleFunc("POST /get", func(w http.ResponseWriter, r *http.Request) {
 		var getReq GetReq
 		if err := json.NewDecoder(r.Body).Decode(&getReq); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -54,7 +57,7 @@ func (s *Server) Start() {
 		res := &GetRes{Value: value}
 		json.NewEncoder(w).Encode(res)
 	})
-	http.HandleFunc("POST /exists", func(w http.ResponseWriter, r *http.Request) {
+	s.mutex.HandleFunc("POST /exists", func(w http.ResponseWriter, r *http.Request) {
 		var getReq GetReq
 		if err := json.NewDecoder(r.Body).Decode(&getReq); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -65,5 +68,11 @@ func (s *Server) Start() {
 		res := &ExistsRes{Exists: value}
 		json.NewEncoder(w).Encode(res)
 	})
-	http.ListenAndServe(":3001", nil)
+}
+
+func (s *Server) Start(port int) {
+	fmt.Println("Server starting on port", port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), s.mutex); err != nil {
+		fmt.Printf("Got error while server start up: %v\n", err)
+	}
 }

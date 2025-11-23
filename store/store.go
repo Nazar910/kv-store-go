@@ -20,7 +20,8 @@ func (s *Store) Set(key string, value string) error {
 
 // Get retrieves a value by key
 func (s *Store) Get(key string) (string, error) {
-	return s.memoryStore[key], nil
+	result, _ := s.memoryStore[key]
+	return result, nil
 }
 
 // Delete removes a key-value pair
