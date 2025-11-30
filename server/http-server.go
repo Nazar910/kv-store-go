@@ -44,7 +44,11 @@ func (s *Server) Init() {
 			return
 		}
 		s.store.Set(setReq.Key, setReq.Value)
-		w.Write([]byte("OK"))
+		_, err := w.Write([]byte("OK"))
+
+		if err != nil {
+			fmt.Printf("Failed to write to response because of err: %v\n", err)
+		}
 	})
 	s.mutex.HandleFunc("POST /get", func(w http.ResponseWriter, r *http.Request) {
 		var getReq GetReq
@@ -54,8 +58,13 @@ func (s *Server) Init() {
 		}
 		value, _ := s.store.Get(getReq.Key)
 		w.Header().Set("Content-Type", "application/json")
+
 		res := &GetRes{Value: value}
-		json.NewEncoder(w).Encode(res)
+		err := json.NewEncoder(w).Encode(res)
+
+		if err != nil {
+			fmt.Printf("Failed to write the response because of err: %v\n", err)
+		}
 	})
 	s.mutex.HandleFunc("POST /exists", func(w http.ResponseWriter, r *http.Request) {
 		var getReq GetReq
@@ -66,7 +75,11 @@ func (s *Server) Init() {
 		value := s.store.Exists(getReq.Key)
 		w.Header().Set("Content-Type", "application/json")
 		res := &ExistsRes{Exists: value}
-		json.NewEncoder(w).Encode(res)
+		err := json.NewEncoder(w).Encode(res)
+
+		if err != nil {
+			fmt.Printf("Failed to write the response because of err: %v\n", err)
+		}
 	})
 	s.mutex.HandleFunc("POST /delete", func(w http.ResponseWriter, r *http.Request) {
 		var getReq GetReq
@@ -75,7 +88,11 @@ func (s *Server) Init() {
 			return
 		}
 		s.store.Delete(getReq.Key)
-		w.Write([]byte("OK"))
+		_, err := w.Write([]byte("OK"))
+
+		if err != nil {
+			fmt.Printf("Failed to write the response because of err: %v\n", err)
+		}
 	})
 }
 

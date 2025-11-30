@@ -63,7 +63,12 @@ func NewWalWriter(fileName string) (*WalWriter, error) {
 
 func (w *WalWriter) Append(cmd Command) {
 	writer := bufio.NewWriter(w.file)
-	writer.WriteString(cmd.Serialize())
+	_, err := writer.WriteString(cmd.Serialize())
+
+	if err != nil {
+		fmt.Printf("Failed to write to WAL log because of err: %v", err)
+	}
+
 	writer.Flush()
 }
 
