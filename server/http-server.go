@@ -68,6 +68,15 @@ func (s *Server) Init() {
 		res := &ExistsRes{Exists: value}
 		json.NewEncoder(w).Encode(res)
 	})
+	s.mutex.HandleFunc("POST /delete", func(w http.ResponseWriter, r *http.Request) {
+		var getReq GetReq
+		if err := json.NewDecoder(r.Body).Decode(&getReq); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		s.store.Delete(getReq.Key)
+		w.Write([]byte("OK"))
+	})
 }
 
 func (s *Server) Start(port int) {
