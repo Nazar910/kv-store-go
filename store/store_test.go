@@ -1,9 +1,32 @@
 package store
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 )
+
+type equaler[T any] interface {
+	Equal(T) bool
+}
+
+func areEqual[T any](a, b T) bool {
+
+	if isNill(a) && isNill(b) {
+		return true
+	}
+
+	if aBytes, ok := any(a).([]byte); ok {
+		bBytes := any(b).([]byte)
+		return bytes.Equal(aBytes, bBytes)
+	}
+
+	if eq, ok := any(a).(equaler[T]); ok {
+		return eq.Equal(b)
+	}
+
+	return reflect.DeepEqual(a, b)
+}
 
 func isNill(v any) bool {
 	if v == nil {
@@ -23,11 +46,7 @@ func isNill(v any) bool {
 func AssertEqual[T any](tb testing.TB, got T, want T) {
 	tb.Helper()
 
-	if isNill(got) && isNill(want) {
-		return
-	}
-
-	if reflect.DeepEqual(got, want) {
+	if areEqual(got, want) {
 		return
 	}
 
