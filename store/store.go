@@ -1,17 +1,22 @@
 package store
 
-import "sync"
+import (
+	"kv-store/wal"
+	"sync"
+)
 
 // Store represents an in-memory key-value store
 type Store struct {
 	memoryStore map[string]string
 	mutex       sync.RWMutex
+	walWriter   wal.WalManager
 }
 
 // New creates a new Store instance
-func New() *Store {
+func New(walWriter wal.WalManager) *Store {
 	return &Store{
 		memoryStore: make(map[string]string),
+		walWriter:   walWriter,
 	}
 }
 
@@ -19,6 +24,8 @@ func New() *Store {
 func (s *Store) Set(key string, value string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	s.walWriter.Append(wal.NewSetCommand(key, value))
+
 	s.memoryStore[key] = value
 	return nil
 }
@@ -40,6 +47,9 @@ func (s *Store) Get(key string) (string, error) {
 func (s *Store) Delete(key string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	s.walWriter.Append(wal.NewDeleteCommand(key))
+
 	delete(s.memoryStore, key)
 	return nil
 }

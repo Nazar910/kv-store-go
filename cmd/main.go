@@ -3,10 +3,13 @@ package main
 import (
 	"kv-store/server"
 	"kv-store/store"
+	"kv-store/wal"
 )
 
 func main() {
-	s := store.New()
+	writer, _ := wal.NewWalWriter("data/log.txt")
+
+	s := store.New(writer)
 	httpServer := server.NewServer(s)
 
 	httpServer.Init()

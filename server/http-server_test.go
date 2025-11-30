@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"kv-store/store"
+	"kv-store/wal"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -27,8 +28,12 @@ func assertEqual[T any](t *testing.T, got T, want T) {
 	t.Errorf("got: %v, want: %v", got, want)
 }
 
+type wallMock struct{}
+
+func (w wallMock) Append(cmd wal.Command) {}
+
 func setupApp() (*httptest.Server, *store.Store) {
-	store := store.New()
+	store := store.New(&wallMock{})
 	originalServer := NewServer(store)
 	originalServer.Init()
 	server := httptest.NewServer(originalServer.mutex)
@@ -103,4 +108,3 @@ func TestHttpServer(t *testing.T) {
 	})
 
 }
-
