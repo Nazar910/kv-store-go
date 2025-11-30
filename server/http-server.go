@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"kv-store/store"
@@ -8,8 +9,9 @@ import (
 )
 
 type Server struct {
-	store *store.Store
-	mutex *http.ServeMux
+	store      *store.Store
+	mutex      *http.ServeMux
+	httpServer *http.Server
 }
 
 func NewServer(store *store.Store) *Server {
@@ -96,9 +98,20 @@ func (s *Server) Init() {
 	})
 }
 
-func (s *Server) Start(port int) {
+func (s *Server) Start(port int) error {
 	fmt.Println("Server starting on port", port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), s.mutex); err != nil {
-		fmt.Printf("Got error while server start up: %v\n", err)
+	s.httpServer = &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: s.mutex,
 	}
+
+	return s.httpServer.ListenAndServe()
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.httpServer == nil {
+		return nil
+	}
+
+	return s.httpServer.Shutdown(ctx)
 }
