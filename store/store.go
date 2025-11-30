@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"kv-store/wal"
 	"sync"
 )
@@ -60,4 +61,18 @@ func (s *Store) Exists(key string) bool {
 	defer s.mutex.RUnlock()
 	_, ok := s.memoryStore[key]
 	return ok
+}
+
+func (s *Store) PopulateFromWal() error {
+	fmt.Println("Recovering from WAL...")
+
+	return s.walWriter.Replay(func(cmd wal.Command) {
+		switch cmd.Op {
+		case wal.OpSET:
+			s.memoryStore[cmd.Key] = cmd.Value
+		case wal.OpDELETE:
+			delete(s.memoryStore, cmd.Key)
+		}
+	})
+
 }

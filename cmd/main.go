@@ -16,7 +16,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	writer, err := wal.NewWalWriter("data/log.txt")
+	writer, err := wal.NewWalWriter()
 
 	if err != nil {
 		fmt.Printf("Error while creating WAL writer: %v\n", err)
@@ -24,6 +24,14 @@ func main() {
 	}
 
 	s := store.New(writer)
+
+	err = s.PopulateFromWal()
+
+	if err != nil {
+		fmt.Printf("Error while populating from WAL: %v\n", err)
+		os.Exit(1)
+	}
+
 	httpServer := server.NewServer(s)
 
 	httpServer.Init()
