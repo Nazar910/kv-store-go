@@ -30,7 +30,8 @@ func assertEqual[T any](t *testing.T, got T, want T) {
 
 type wallMock struct{}
 
-func (w wallMock) Append(cmd wal.Command) {}
+func (w wallMock) Append(cmd wal.Command)             {}
+func (w wallMock) Replay(func(cmd wal.Command)) error { return nil }
 
 func setupApp() (*httptest.Server, *store.Store) {
 	store := store.New(&wallMock{})

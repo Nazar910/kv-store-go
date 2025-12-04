@@ -53,14 +53,14 @@ func DeserializeCmd(record string) (Command, error) {
 
 	cmd := Command{}
 
-	OpString := strings.TrimPrefix(parts[0], "Op:")
-	OpInt, err := strconv.Atoi(OpString)
+	opString := strings.TrimPrefix(parts[0], "Op:")
+	opInt, err := strconv.Atoi(opString)
 
 	if err != nil {
-		return Command{}, fmt.Errorf("Invalid Op code: %s", OpString)
+		return Command{}, fmt.Errorf("Invalid Op code: %s", opString)
 	}
 
-	cmd.Op = OpCode(OpInt)
+	cmd.Op = OpCode(opInt)
 
 	cmd.Key = strings.TrimPrefix(parts[1], "key:")
 	if cmd.Op == OpSET {

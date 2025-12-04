@@ -56,7 +56,8 @@ func AssertEqual[T any](tb testing.TB, got T, want T) {
 
 type mockWalManager struct{}
 
-func (m *mockWalManager) Append(wal.Command) {}
+func (m *mockWalManager) Append(wal.Command)             {}
+func (m *mockWalManager) Replay(func(wal.Command)) error { return nil }
 
 func TestStore(t *testing.T) {
 	t.Run("set-get", func(t *testing.T) {
