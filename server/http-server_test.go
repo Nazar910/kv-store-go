@@ -86,7 +86,7 @@ func TestHttpServer(t *testing.T) {
 
 		resp := makeRequest(t, server.URL+"/get", buff)
 		var getRes GetRes
-		json.NewDecoder(resp.Body).Decode(&getRes)
+		err = json.NewDecoder(resp.Body).Decode(&getRes)
 		assertNoError(t, err)
 		assertEqual(t, getRes, GetRes{Value: "bar321"})
 	})
@@ -106,6 +106,21 @@ func TestHttpServer(t *testing.T) {
 		err = json.NewDecoder(resp.Body).Decode(&existsRes)
 		assertNoError(t, err)
 		assertEqual(t, existsRes, ExistsRes{Exists: true})
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		server, store := setupApp()
+		defer server.Close()
+		store.Set("foo-to-delete", "bar")
+
+		getReq := &GetReq{Key: "foo-to-delete"}
+		var buff bytes.Buffer
+		err := json.NewEncoder(&buff).Encode(getReq)
+		assertNoError(t, err)
+
+		makeRequest(t, server.URL+"/delete", buff)
+		exists := store.Exists("foo-to-delete")
+		assertEqual(t, exists, false)
 	})
 
 }
