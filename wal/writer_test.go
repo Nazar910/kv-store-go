@@ -307,13 +307,79 @@ func TestWalWriter_FilePermissions(t *testing.T) {
 	}
 }
 
+// TestWalWriter_WhitespaceHandling tests that keys and values with spaces work correctly
+func TestWalWriter_WhitespaceHandling(t *testing.T) {
+	tmpDir := t.TempDir()
+	walPath := filepath.Join(tmpDir, "whitespace.wal")
+
+	writer, err := NewWalWriter(walPath)
+	if err != nil {
+		t.Fatalf("Failed to create WAL writer: %v", err)
+	}
+
+	// Test various whitespace scenarios
+	commands := []Command{
+		NewSetCommand("simple", "no spaces"),
+		NewSetCommand("key with spaces", "value with spaces"),
+		NewSetCommand("user profile", "John Doe from New York"),
+		NewSetCommand("sentence", "The quick brown fox jumps over the lazy dog"),
+		NewSetCommand("leading spaces", "  value"),
+		NewSetCommand("trailing spaces", "value  "),
+		NewSetCommand("multiple  spaces", "value  with  gaps"),
+		NewDeleteCommand("key with spaces"),
+	}
+
+	for _, cmd := range commands {
+		writer.Append(cmd)
+	}
+	writer.Close()
+
+	// Replay and verify all commands with whitespace are preserved
+	reader, err := NewWalWriter(walPath)
+	if err != nil {
+		t.Fatalf("Failed to create WAL reader: %v", err)
+	}
+	defer reader.Close()
+
+	var replayed []Command
+	err = reader.Replay(func(cmd Command) {
+		replayed = append(replayed, cmd)
+	})
+
+	if err != nil {
+		t.Fatalf("Failed to replay WAL: %v", err)
+	}
+
+	if len(replayed) != len(commands) {
+		t.Errorf("Expected %d commands, got %d", len(commands), len(replayed))
+	}
+
+	// Verify each command matches exactly, including whitespace
+	for i, expected := range commands {
+		if i >= len(replayed) {
+			break
+		}
+		got := replayed[i]
+
+		if got.Op != expected.Op {
+			t.Errorf("Command %d: expected Op %d, got %d", i, expected.Op, got.Op)
+		}
+		if got.Key != expected.Key {
+			t.Errorf("Command %d: expected Key %q, got %q", i, expected.Key, got.Key)
+		}
+		if got.Value != expected.Value {
+			t.Errorf("Command %d: expected Value %q, got %q", i, expected.Value, got.Value)
+		}
+	}
+}
+
 // === Unit Tests for Serialization/Deserialization (No File I/O) ===
 
 // TestCommand_Serialize_SET tests serialization of SET commands
 func TestCommand_Serialize_SET(t *testing.T) {
 	cmd := NewSetCommand("mykey", "myvalue")
 	got := cmd.Serialize()
-	want := "Op:0 key:mykey value:myvalue\n"
+	want := "0\tmykey\tmyvalue\n"
 
 	if got != want {
 		t.Errorf("Serialize() = %q, want %q", got, want)
@@ -324,7 +390,7 @@ func TestCommand_Serialize_SET(t *testing.T) {
 func TestCommand_Serialize_DELETE(t *testing.T) {
 	cmd := NewDeleteCommand("mykey")
 	got := cmd.Serialize()
-	want := "Op:1 key:mykey\n"
+	want := "1\tmykey\n"
 
 	if got != want {
 		t.Errorf("Serialize() = %q, want %q", got, want)
@@ -343,19 +409,37 @@ func TestCommand_Serialize_SpecialCharacters(t *testing.T) {
 			name:  "colon in key",
 			key:   "user:123",
 			value: "alice",
-			want:  "Op:0 key:user:123 value:alice\n",
+			want:  "0\tuser:123\talice\n",
+		},
+		{
+			name:  "spaces in value",
+			key:   "message",
+			value: "hello world",
+			want:  "0\tmessage\thello world\n",
+		},
+		{
+			name:  "spaces in key",
+			key:   "first name",
+			value: "alice",
+			want:  "0\tfirst name\talice\n",
+		},
+		{
+			name:  "multiple spaces",
+			key:   "sentence",
+			value: "the quick brown fox",
+			want:  "0\tsentence\tthe quick brown fox\n",
 		},
 		{
 			name:  "numeric value",
 			key:   "counter",
 			value: "12345",
-			want:  "Op:0 key:counter value:12345\n",
+			want:  "0\tcounter\t12345\n",
 		},
 		{
 			name:  "empty value",
 			key:   "empty",
 			value: "",
-			want:  "Op:0 key:empty value:\n",
+			want:  "0\tempty\t\n",
 		},
 	}
 
@@ -372,7 +456,7 @@ func TestCommand_Serialize_SpecialCharacters(t *testing.T) {
 
 // TestDeserializeCmd_SET tests deserialization of SET commands
 func TestDeserializeCmd_SET(t *testing.T) {
-	input := "Op:0 key:mykey value:myvalue"
+	input := "0\tmykey\tmyvalue"
 	cmd, err := DeserializeCmd(input)
 
 	if err != nil {
@@ -392,7 +476,7 @@ func TestDeserializeCmd_SET(t *testing.T) {
 
 // TestDeserializeCmd_DELETE tests deserialization of DELETE commands
 func TestDeserializeCmd_DELETE(t *testing.T) {
-	input := "Op:1 key:mykey"
+	input := "1\tmykey"
 	cmd, err := DeserializeCmd(input)
 
 	if err != nil {
@@ -470,15 +554,19 @@ func TestDeserializeCmd_InvalidFormats(t *testing.T) {
 		},
 		{
 			name:  "only opcode",
-			input: "Op:0",
+			input: "0",
 		},
 		{
 			name:  "too many fields",
-			input: "Op:0 key:k value:v extra:field",
+			input: "0\tk\tv\textra",
 		},
 		{
 			name:  "invalid opcode",
-			input: "Op:invalid key:mykey",
+			input: "invalid\tmykey",
+		},
+		{
+			name:  "SET missing value",
+			input: "0\tmykey",
 		},
 	}
 
