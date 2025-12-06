@@ -16,7 +16,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	writer, err := wal.NewWalWriter()
+	writer, err := wal.NewWalWriter(wal.FILE_NAME)
 
 	if err != nil {
 		fmt.Printf("Error while creating WAL writer: %v\n", err)

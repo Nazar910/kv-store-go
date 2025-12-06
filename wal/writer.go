@@ -14,7 +14,8 @@ type WalManager interface {
 }
 
 type WalWriter struct {
-	file *os.File
+	file     *os.File
+	filePath string
 }
 
 type OpCode int
@@ -80,15 +81,16 @@ func (c Command) Serialize() string {
 
 const FILE_NAME = "data/wal.log"
 
-func NewWalWriter() (*WalWriter, error) {
-	file, err := os.OpenFile(FILE_NAME, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+func NewWalWriter(filePath string) (*WalWriter, error) {
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return &WalWriter{
-		file: file,
+		file:     file,
+		filePath: filePath,
 	}, nil
 }
 
@@ -104,7 +106,7 @@ func (w *WalWriter) Append(cmd Command) {
 }
 
 func (w *WalWriter) Replay(callback func(Command)) error {
-	file, err := os.Open(FILE_NAME)
+	file, err := os.Open(w.filePath)
 
 	if err != nil {
 		return err
