@@ -31,7 +31,7 @@ func TestSnapshot_Load(t *testing.T) {
 		return
 	}
 
-	snapshoter := NewSnapshoter(filePath)
+	snapshoter := NewSnapshotter(filePath)
 
 	actualData, err := snapshoter.Load()
 
@@ -52,7 +52,7 @@ func TestSnapshot_Save(t *testing.T) {
 	expectedData["key:1"] = "value123"
 	expectedData["key:2"] = "value321"
 
-	snapshoter := NewSnapshoter(filePath)
+	snapshoter := NewSnapshotter(filePath)
 
 	err := snapshoter.Save(expectedData)
 

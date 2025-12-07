@@ -9,7 +9,7 @@ import (
 
 // TestConcurrentAccess demonstrates race conditions in the current implementation
 func TestConcurrentAccess(t *testing.T) {
-	s := New(&mockWalManager{})
+	s := New(&mockWalManager{}, &mockSnapshotter{})
 
 	// Number of concurrent goroutines
 	numGoroutines := 100
@@ -58,7 +58,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 // TestConcurrentReadWrite shows classic read-write race
 func TestConcurrentReadWrite(t *testing.T) {
-	s := New(&mockWalManager{})
+	s := New(&mockWalManager{}, &mockSnapshotter{})
 	s.Set("shared-key", "initial-value")
 
 	var wg sync.WaitGroup
@@ -88,7 +88,7 @@ func TestConcurrentReadWrite(t *testing.T) {
 
 // TestMapGrowthRace demonstrates race during map growth
 func TestMapGrowthRace(t *testing.T) {
-	s := New(&mockWalManager{})
+	s := New(&mockWalManager{}, &mockSnapshotter{})
 
 	var wg sync.WaitGroup
 
@@ -108,7 +108,7 @@ func TestMapGrowthRace(t *testing.T) {
 
 // TestDeleteRace shows delete racing with reads
 func TestDeleteRace(t *testing.T) {
-	s := New(&mockWalManager{})
+	s := New(&mockWalManager{}, &mockSnapshotter{})
 
 	// Pre-populate
 	for i := 0; i < 100; i++ {

@@ -23,12 +23,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	s := store.New(writer)
+	snapshotter := wal.NewSnapshotter(wal.SNAPSHOT_FILE_NAME)
 
-	err = s.PopulateFromWal()
+	s := store.New(writer, snapshotter)
+
+	err = s.Load()
 
 	if err != nil {
-		fmt.Printf("Error while populating from WAL: %v\n", err)
+		fmt.Printf("Error while populating store: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -58,6 +60,7 @@ func main() {
 		fmt.Printf("Server shutdown error: %v\n", err)
 	}
 
+	s.CreateSnapshot()
 	writer.Close()
 
 	fmt.Println("Shutdown complete")

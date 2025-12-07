@@ -6,19 +6,24 @@ import (
 	"os"
 )
 
-type Snapshoter struct {
+type Snapshotter interface {
+	Save(map[string]string) error
+	Load() (map[string]string, error)
+}
+
+type BinFileSnapshotter struct {
 	filePath string
 }
 
 const SNAPSHOT_FILE_NAME = "data/snapshot.bin"
 
-func NewSnapshoter(filePath string) *Snapshoter {
-	return &Snapshoter{
+func NewSnapshotter(filePath string) Snapshotter {
+	return &BinFileSnapshotter{
 		filePath: filePath,
 	}
 }
 
-func (s *Snapshoter) Save(data map[string]string) error {
+func (s *BinFileSnapshotter) Save(data map[string]string) error {
 	tmpPath := s.filePath + ".tmp"
 	file, err := os.Create(tmpPath)
 
@@ -40,7 +45,7 @@ func (s *Snapshoter) Save(data map[string]string) error {
 	return os.Rename(tmpPath, s.filePath)
 }
 
-func (s *Snapshoter) Load() (map[string]string, error) {
+func (s *BinFileSnapshotter) Load() (map[string]string, error) {
 	file, err := os.Open(s.filePath)
 
 	if err != nil {

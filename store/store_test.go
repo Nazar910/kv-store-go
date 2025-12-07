@@ -58,10 +58,16 @@ type mockWalManager struct{}
 
 func (m *mockWalManager) Append(wal.Command)             {}
 func (m *mockWalManager) Replay(func(wal.Command)) error { return nil }
+func (m *mockWalManager) Truncate() error                { return nil }
+
+type mockSnapshotter struct{}
+
+func (s *mockSnapshotter) Save(map[string]string) error     { return nil }
+func (s *mockSnapshotter) Load() (map[string]string, error) { return nil, nil }
 
 func TestStore(t *testing.T) {
 	t.Run("set-get", func(t *testing.T) {
-		store := New(&mockWalManager{})
+		store := New(&mockWalManager{}, &mockSnapshotter{})
 
 		store.Set("foo", "bar")
 
@@ -71,7 +77,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("get for nothing should return nil", func(t *testing.T) {
-		store := New(&mockWalManager{})
+		store := New(&mockWalManager{}, &mockSnapshotter{})
 
 		got, _ := store.Get("foo")
 
@@ -79,7 +85,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("set-delete-get", func(t *testing.T) {
-		store := New(&mockWalManager{})
+		store := New(&mockWalManager{}, &mockSnapshotter{})
 
 		store.Set("foo", "bar")
 		store.Delete("foo")
@@ -89,7 +95,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("set-exists", func(t *testing.T) {
-		store := New(&mockWalManager{})
+		store := New(&mockWalManager{}, &mockSnapshotter{})
 
 		store.Set("foo", "bar")
 		got := store.Exists("foo")

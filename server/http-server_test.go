@@ -32,9 +32,15 @@ type wallMock struct{}
 
 func (w wallMock) Append(cmd wal.Command)             {}
 func (w wallMock) Replay(func(cmd wal.Command)) error { return nil }
+func (w wallMock) Truncate() error                    { return nil }
+
+type mockSnapshotter struct{}
+
+func (s *mockSnapshotter) Save(map[string]string) error     { return nil }
+func (s *mockSnapshotter) Load() (map[string]string, error) { return nil, nil }
 
 func setupApp() (*httptest.Server, *store.Store) {
-	store := store.New(&wallMock{})
+	store := store.New(&wallMock{}, &mockSnapshotter{})
 	originalServer := NewServer(store)
 	originalServer.Init()
 	server := httptest.NewServer(originalServer.mutex)

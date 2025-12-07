@@ -11,6 +11,7 @@ import (
 type WalManager interface {
 	Append(cmd Command)
 	Replay(func(Command)) error
+	Truncate() error
 }
 
 type WalWriter struct {
@@ -139,4 +140,18 @@ func (w *WalWriter) Replay(callback func(Command)) error {
 
 func (w *WalWriter) Close() {
 	w.file.Close()
+}
+
+func (w *WalWriter) Truncate() error {
+	w.file.Close()
+
+	file, err := os.Create(w.filePath)
+
+	if err != nil {
+		return err
+	}
+
+	w.file = file
+
+	return nil
 }
