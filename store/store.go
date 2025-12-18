@@ -65,20 +65,6 @@ func (s *Store) Exists(key string) bool {
 	return ok
 }
 
-func (s *Store) PopulateFromWal() error {
-	fmt.Println("Recovering from WAL...")
-
-	return s.walWriter.Replay(func(cmd wal.Command) {
-		switch cmd.Op {
-		case wal.OpSET:
-			s.memoryStore[cmd.Key] = cmd.Value
-		case wal.OpDELETE:
-			delete(s.memoryStore, cmd.Key)
-		}
-	})
-
-}
-
 func (s *Store) CreateSnapshot() error {
 	fmt.Println("Saving to a snapshot file...")
 	s.mutex.Lock()
