@@ -61,7 +61,7 @@ func (s *Store) SetEx(key, value string, ttl int) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	return s.baseSet(key, value, time.Now().Add(time.Duration(ttl)*time.Second))
+	return s.baseSet(key, value, s.clock.Now().Add(time.Duration(ttl)*time.Second))
 }
 
 // Private set implementation (the callee should handle locks itself)
@@ -175,8 +175,9 @@ func (s *Store) Load() error {
 		switch cmd.Op {
 		case wal.OpSET:
 			s.memoryStore[cmd.Key] = &types.Entry{
-				Value:     cmd.Value,
-				ExpiresAt: time.Time{}, // loosing expiry if restored from WAL at the moment
+				Value: cmd.Value,
+				// setting a default ttl of 30 sec upon WALL restore
+				ExpiresAt: s.clock.Now().Add(30 * time.Second),
 			}
 		case wal.OpDELETE:
 			delete(s.memoryStore, cmd.Key)
