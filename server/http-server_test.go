@@ -39,8 +39,12 @@ type mockSnapshotter struct{}
 func (s *mockSnapshotter) Save(map[string]string) error     { return nil }
 func (s *mockSnapshotter) Load() (map[string]string, error) { return nil, nil }
 
+var storeConfig *store.Config = &store.Config{
+	Capacity: 100,
+}
+
 func setupApp() (*httptest.Server, *store.Store) {
-	store := store.New(&wallMock{}, &mockSnapshotter{})
+	store := store.New(&wallMock{}, &mockSnapshotter{}, storeConfig)
 	originalServer := NewServer(store)
 	originalServer.Init()
 	server := httptest.NewServer(originalServer.mutex)

@@ -25,7 +25,7 @@ func main() {
 
 	snapshotter := wal.NewSnapshotter(wal.SNAPSHOT_FILE_NAME)
 
-	s := store.New(writer, snapshotter)
+	s := store.New(writer, snapshotter, &store.Config{Capacity: 100})
 
 	err = s.Load()
 
