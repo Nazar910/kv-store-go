@@ -3,12 +3,13 @@ package wal
 import (
 	"encoding/gob"
 	"fmt"
+	"kv-store/types"
 	"os"
 )
 
 type Snapshotter interface {
-	Save(map[string]string) error
-	Load() (map[string]string, error)
+	Save(types.StoreMap) error
+	Load() (types.StoreMap, error)
 }
 
 type BinFileSnapshotter struct {
@@ -23,7 +24,7 @@ func NewSnapshotter(filePath string) Snapshotter {
 	}
 }
 
-func (s *BinFileSnapshotter) Save(data map[string]string) error {
+func (s *BinFileSnapshotter) Save(data types.StoreMap) error {
 	tmpPath := s.filePath + ".tmp"
 	file, err := os.Create(tmpPath)
 
@@ -45,12 +46,12 @@ func (s *BinFileSnapshotter) Save(data map[string]string) error {
 	return os.Rename(tmpPath, s.filePath)
 }
 
-func (s *BinFileSnapshotter) Load() (map[string]string, error) {
+func (s *BinFileSnapshotter) Load() (types.StoreMap, error) {
 	file, err := os.Open(s.filePath)
 
 	if err != nil {
 		if os.IsNotExist(err) {
-			return make(map[string]string), nil
+			return make(types.StoreMap), nil
 		}
 
 		return nil, fmt.Errorf("failed to open a snapshot file: %v", err)
@@ -58,7 +59,7 @@ func (s *BinFileSnapshotter) Load() (map[string]string, error) {
 
 	defer file.Close()
 
-	data := make(map[string]string)
+	data := make(types.StoreMap)
 
 	if err := gob.NewDecoder(file).Decode(&data); err != nil {
 		return nil, fmt.Errorf("failed while reading a snapshot file: %v", err)

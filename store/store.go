@@ -3,17 +3,23 @@ package store
 import (
 	"container/list"
 	"fmt"
+	"kv-store/types"
 	"kv-store/wal"
 	"sync"
+	"time"
 )
 
 type Config struct {
 	Capacity int
 }
 
+type Clock interface {
+	Now() time.Time
+}
+
 // Store represents an in-memory key-value store
 type Store struct {
-	memoryStore map[string]string
+	memoryStore types.StoreMap
 	mutex       sync.RWMutex
 	capacity    int
 	lruList     *list.List
@@ -21,14 +27,16 @@ type Store struct {
 
 	walWriter   wal.WalManager
 	snapshotter wal.Snapshotter
+	clock       Clock
 }
 
 // New creates a new Store instance
-func New(walWriter wal.WalManager, snapshotter wal.Snapshotter, config *Config) *Store {
+func New(clock Clock, walWriter wal.WalManager, snapshotter wal.Snapshotter, config *Config) *Store {
 	return &Store{
-		memoryStore: make(map[string]string),
+		memoryStore: make(types.StoreMap),
 		walWriter:   walWriter,
 		snapshotter: snapshotter,
+		clock:       clock,
 
 		lruList:  list.New(),
 		lruMap:   make(map[string]*list.Element),
@@ -41,9 +49,23 @@ func (s *Store) AtCapacity() bool {
 }
 
 // Set stores a key-value pair
-func (s *Store) Set(key string, value string) error {
+func (s *Store) Set(key, value string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	return s.baseSet(key, value, time.Time{}) // zero value means no expiry
+}
+
+// Set stores a key-value pair
+func (s *Store) SetEx(key, value string, ttl int) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return s.baseSet(key, value, time.Now().Add(time.Duration(ttl)*time.Second))
+}
+
+// Private set implementation (the callee should handle locks itself)
+func (s *Store) baseSet(key string, value string, expiresAt time.Time) error {
 	s.walWriter.Append(wal.NewSetCommand(key, value))
 	_, exists := s.memoryStore[key]
 
@@ -59,7 +81,10 @@ func (s *Store) Set(key string, value string) error {
 		s.lruList.Remove(oldest)
 	}
 
-	s.memoryStore[key] = value
+	s.memoryStore[key] = &types.Entry{
+		Value:     value,
+		ExpiresAt: expiresAt,
+	}
 	if !exists {
 		elem := s.lruList.PushFront(key)
 		s.lruMap[key] = elem
@@ -81,10 +106,15 @@ func (s *Store) Get(key string) (string, error) {
 		return "", nil
 	}
 
+	if result.IsExpired(s.clock.Now()) {
+		// will need to delete the expired key
+		return "", nil
+	}
+
 	elem := s.lruMap[key]
 	s.lruList.MoveToFront(elem)
 
-	return result, nil
+	return result.Value, nil
 }
 
 // Delete removes a key-value pair
@@ -112,8 +142,8 @@ func (s *Store) Delete(key string) error {
 func (s *Store) Exists(key string) bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	_, ok := s.memoryStore[key]
-	return ok
+	entry, ok := s.memoryStore[key]
+	return ok && !entry.IsExpired(s.clock.Now())
 }
 
 func (s *Store) CreateSnapshot() error {
@@ -144,7 +174,10 @@ func (s *Store) Load() error {
 	return s.walWriter.Replay(func(cmd wal.Command) {
 		switch cmd.Op {
 		case wal.OpSET:
-			s.memoryStore[cmd.Key] = cmd.Value
+			s.memoryStore[cmd.Key] = &types.Entry{
+				Value:     cmd.Value,
+				ExpiresAt: time.Time{}, // loosing expiry if restored from WAL at the moment
+			}
 		case wal.OpDELETE:
 			delete(s.memoryStore, cmd.Key)
 		}

@@ -3,9 +3,11 @@ package store
 import (
 	"bytes"
 	"fmt"
+	"kv-store/types"
 	"kv-store/wal"
 	"reflect"
 	"testing"
+	"time"
 )
 
 type equaler[T any] interface {
@@ -63,8 +65,16 @@ func (m *mockWalManager) Truncate() error                { return nil }
 
 type mockSnapshotter struct{}
 
-func (s *mockSnapshotter) Save(map[string]string) error     { return nil }
-func (s *mockSnapshotter) Load() (map[string]string, error) { return nil, nil }
+func (s *mockSnapshotter) Save(types.StoreMap) error     { return nil }
+func (s *mockSnapshotter) Load() (types.StoreMap, error) { return nil, nil }
+
+type mockClock struct {
+	CurrentTime time.Time
+}
+
+func NewClock() *mockClock                           { return &mockClock{CurrentTime: time.Now()} }
+func (mc *mockClock) Now() time.Time                 { return mc.CurrentTime }
+func (mc *mockClock) Advance(duration time.Duration) { mc.CurrentTime = mc.CurrentTime.Add(duration) }
 
 var config *Config = &Config{
 	Capacity: 100,
@@ -72,7 +82,7 @@ var config *Config = &Config{
 
 func TestStore(t *testing.T) {
 	t.Run("set-get", func(t *testing.T) {
-		store := New(&mockWalManager{}, &mockSnapshotter{}, config)
+		store := New(NewClock(), &mockWalManager{}, &mockSnapshotter{}, config)
 
 		store.Set("foo", "bar")
 
@@ -82,7 +92,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("get for nothing should return nil", func(t *testing.T) {
-		store := New(&mockWalManager{}, &mockSnapshotter{}, config)
+		store := New(NewClock(), &mockWalManager{}, &mockSnapshotter{}, config)
 
 		got, _ := store.Get("foo")
 
@@ -90,7 +100,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("set-delete-get", func(t *testing.T) {
-		store := New(&mockWalManager{}, &mockSnapshotter{}, config)
+		store := New(NewClock(), &mockWalManager{}, &mockSnapshotter{}, config)
 
 		store.Set("foo", "bar")
 		store.Delete("foo")
@@ -100,7 +110,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("set-exists", func(t *testing.T) {
-		store := New(&mockWalManager{}, &mockSnapshotter{}, config)
+		store := New(NewClock(), &mockWalManager{}, &mockSnapshotter{}, config)
 
 		store.Set("foo", "bar")
 		got := store.Exists("foo")
@@ -110,7 +120,7 @@ func TestStore(t *testing.T) {
 
 	t.Run("lru evicts least used", func(t *testing.T) {
 		lruConfig := &Config{Capacity: 5}
-		store := New(&mockWalManager{}, &mockSnapshotter{}, lruConfig)
+		store := New(NewClock(), &mockWalManager{}, &mockSnapshotter{}, lruConfig)
 
 		for v := range 5 {
 			key := fmt.Sprintf("foo-%d", v)
@@ -128,6 +138,19 @@ func TestStore(t *testing.T) {
 		AssertEqual(t, firstExists, true)
 		AssertEqual(t, secondExists, false)
 		AssertEqual(t, lastExists, true)
+	})
+
+	t.Run("set with expiration", func(t *testing.T) {
+		clock := NewClock()
+		store := New(clock, &mockWalManager{}, &mockSnapshotter{}, config)
+
+		store.SetEx("foo", "bar", 10)
+		got := store.Exists("foo")
+
+		AssertEqual(t, got, true)
+		clock.Advance(11 * time.Second)
+		got = store.Exists("foo")
+		AssertEqual(t, got, false)
 	})
 
 }

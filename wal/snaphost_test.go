@@ -2,10 +2,12 @@ package wal
 
 import (
 	"encoding/gob"
+	"kv-store/types"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestSnapshot_Load(t *testing.T) {
@@ -20,9 +22,15 @@ func TestSnapshot_Load(t *testing.T) {
 
 	defer file.Close()
 
-	expectedData := make(map[string]string)
-	expectedData["user:123"] = "value"
-	expectedData["user:456"] = "value2"
+	expectedData := make(types.StoreMap)
+	expectedData["user:123"] = &types.Entry{
+		Value:     "value",
+		ExpiresAt: time.Time{},
+	}
+	expectedData["user:456"] = &types.Entry{
+		Value:     "value2",
+		ExpiresAt: time.Time{},
+	}
 
 	err = gob.NewEncoder(file).Encode(expectedData)
 
@@ -48,9 +56,15 @@ func TestSnapshot_Save(t *testing.T) {
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "store_test.bin")
 
-	expectedData := make(map[string]string)
-	expectedData["key:1"] = "value123"
-	expectedData["key:2"] = "value321"
+	expectedData := make(types.StoreMap)
+	expectedData["key:1"] = &types.Entry{
+		Value:     "value123",
+		ExpiresAt: time.Time{},
+	}
+	expectedData["key:2"] = &types.Entry{
+		Value:     "value321",
+		ExpiresAt: time.Time{},
+	}
 
 	snapshoter := NewSnapshotter(filePath)
 
@@ -68,7 +82,7 @@ func TestSnapshot_Save(t *testing.T) {
 
 	defer file.Close()
 
-	actualData := make(map[string]string)
+	actualData := make(types.StoreMap)
 
 	if err := gob.NewDecoder(file).Decode(&actualData); err != nil {
 		t.Errorf("error while encoding a test snapshot file: %v", err)

@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"kv-store/store"
+	"kv-store/types"
 	"kv-store/wal"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func assertNoError(t *testing.T, err error) {
@@ -36,15 +38,19 @@ func (w wallMock) Truncate() error                    { return nil }
 
 type mockSnapshotter struct{}
 
-func (s *mockSnapshotter) Save(map[string]string) error     { return nil }
-func (s *mockSnapshotter) Load() (map[string]string, error) { return nil, nil }
+func (s *mockSnapshotter) Save(types.StoreMap) error     { return nil }
+func (s *mockSnapshotter) Load() (types.StoreMap, error) { return nil, nil }
+
+type RealClock struct{}
+
+func (rc *RealClock) Now() time.Time { return time.Now() }
 
 var storeConfig *store.Config = &store.Config{
 	Capacity: 100,
 }
 
 func setupApp() (*httptest.Server, *store.Store) {
-	store := store.New(&wallMock{}, &mockSnapshotter{}, storeConfig)
+	store := store.New(&RealClock{}, &wallMock{}, &mockSnapshotter{}, storeConfig)
 	originalServer := NewServer(store)
 	originalServer.Init()
 	server := httptest.NewServer(originalServer.mutex)
