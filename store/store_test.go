@@ -59,9 +59,9 @@ func AssertEqual[T any](tb testing.TB, got T, want T) {
 
 type mockWalManager struct{}
 
-func (m *mockWalManager) Append(wal.Command)             {}
-func (m *mockWalManager) Replay(func(wal.Command)) error { return nil }
-func (m *mockWalManager) Truncate() error                { return nil }
+func (m *mockWalManager) Append(wal.Command)                           {}
+func (m *mockWalManager) CommandScanner() (*wal.CommandScanner, error) { return nil, nil }
+func (m *mockWalManager) Truncate() error                              { return nil }
 
 type mockSnapshotter struct{}
 

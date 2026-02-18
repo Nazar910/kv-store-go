@@ -73,12 +73,7 @@ func (s *Store) baseSet(key string, value string, expiresAt time.Time) error {
 		oldest := s.lruList.Back()
 		oldestKey := oldest.Value.(string)
 
-		// possible candidate to some privateDelete method
-		s.walWriter.Append(wal.NewDeleteCommand(key))
-		delete(s.memoryStore, oldestKey)
-
-		delete(s.lruMap, oldestKey)
-		s.lruList.Remove(oldest)
+		s.baseDelete(oldestKey, oldest)
 	}
 
 	s.memoryStore[key] = &types.Entry{
@@ -117,12 +112,17 @@ func (s *Store) Get(key string) (string, error) {
 	return result.Value, nil
 }
 
+func (s *Store) baseDelete(key string, node *list.Element) {
+	s.walWriter.Append(wal.NewDeleteCommand(key))
+	s.lruList.Remove(node)
+	delete(s.lruMap, key)
+	delete(s.memoryStore, key)
+}
+
 // Delete removes a key-value pair
 func (s *Store) Delete(key string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-
-	s.walWriter.Append(wal.NewDeleteCommand(key))
 
 	_, exists := s.memoryStore[key]
 
@@ -131,9 +131,7 @@ func (s *Store) Delete(key string) error {
 	}
 
 	node := s.lruMap[key]
-	s.lruList.Remove(node)
-	delete(s.lruMap, key)
-	delete(s.memoryStore, key)
+	s.baseDelete(key, node)
 
 	return nil
 }
@@ -171,7 +169,18 @@ func (s *Store) Load() error {
 	s.memoryStore = data
 
 	fmt.Println("Catching up with WAL if any...")
-	return s.walWriter.Replay(func(cmd wal.Command) {
+
+	commandScanner, err := s.walWriter.CommandScanner()
+
+	if err != nil {
+		return err
+	}
+
+	defer commandScanner.Close()
+
+	for commandScanner.Scan() {
+		cmd := commandScanner.Command()
+
 		switch cmd.Op {
 		case wal.OpSET:
 			s.memoryStore[cmd.Key] = &types.Entry{
@@ -182,5 +191,7 @@ func (s *Store) Load() error {
 		case wal.OpDELETE:
 			delete(s.memoryStore, cmd.Key)
 		}
-	})
+	}
+
+	return commandScanner.Err()
 }

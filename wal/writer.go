@@ -3,6 +3,7 @@ package wal
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -10,7 +11,7 @@ import (
 
 type WalManager interface {
 	Append(cmd Command)
-	Replay(func(Command)) error
+	CommandScanner() (*CommandScanner, error)
 	Truncate() error
 }
 
@@ -108,19 +109,16 @@ func (w *WalWriter) Append(cmd Command) {
 	writer.Flush()
 }
 
-func (w *WalWriter) Replay(callback func(Command)) error {
-	file, err := os.Open(w.filePath)
+type CommandScanner struct {
+	scanner *bufio.Scanner
+	lastCmd Command
+	lastErr error
+	closer  io.Closer
+}
 
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		line := scanner.Text()
+func (c *CommandScanner) Scan() bool {
+	for c.scanner.Scan() {
+		line := c.scanner.Text()
 
 		if line == "" {
 			continue
@@ -129,13 +127,43 @@ func (w *WalWriter) Replay(callback func(Command)) error {
 		cmd, err := DeserializeCmd(line)
 
 		if err != nil {
-			return fmt.Errorf("Failed to parse WAL line: %s", line)
+			c.lastErr = fmt.Errorf("Failed to parse WAL line: %s", line)
+			return false
 		}
 
-		callback(cmd)
+		c.lastCmd = cmd
+		return true
 	}
 
-	return scanner.Err()
+	c.lastErr = c.scanner.Err()
+
+	return false
+
+}
+
+func (c *CommandScanner) Command() Command {
+	return c.lastCmd
+}
+
+func (c *CommandScanner) Err() error {
+	return c.lastErr
+}
+
+func (c *CommandScanner) Close() error {
+	return c.closer.Close()
+}
+
+func (w *WalWriter) CommandScanner() (*CommandScanner, error) {
+	file, err := os.Open(w.filePath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &CommandScanner{
+		scanner: bufio.NewScanner(file),
+		closer:  file,
+	}, nil
 }
 
 func (w *WalWriter) Close() {

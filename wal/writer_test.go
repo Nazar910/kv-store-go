@@ -44,9 +44,17 @@ func TestWalWriter_AppendAndReplay(t *testing.T) {
 
 	// Replay and verify
 	var replayed []Command
-	err = reader.Replay(func(cmd Command) {
-		replayed = append(replayed, cmd)
-	})
+	cmdScanner, err := reader.CommandScanner()
+
+	if err != nil {
+		t.Fatalf("Failed to create commands scanner")
+	}
+
+	defer cmdScanner.Close()
+
+	for cmdScanner.Scan() {
+		replayed = append(replayed, cmdScanner.Command())
+	}
 
 	if err != nil {
 		t.Fatalf("Failed to replay WAL: %v", err)
@@ -89,9 +97,19 @@ func TestWalWriter_EmptyFile(t *testing.T) {
 
 	// Don't append anything, just replay empty file
 	var replayed []Command
-	err = writer.Replay(func(cmd Command) {
-		replayed = append(replayed, cmd)
-	})
+	cmdScanner, err := writer.CommandScanner()
+
+	if err != nil {
+		t.Fatalf("Failed to create commands scanner")
+	}
+
+	defer cmdScanner.Close()
+
+	for cmdScanner.Scan() {
+		replayed = append(replayed, cmdScanner.Command())
+	}
+
+	err = cmdScanner.Err()
 
 	if err != nil {
 		t.Fatalf("Failed to replay empty WAL: %v", err)
@@ -109,7 +127,7 @@ func TestWalWriter_NonExistentFile(t *testing.T) {
 
 	writer := &WalWriter{filePath: walPath}
 
-	err := writer.Replay(func(cmd Command) {})
+	_, err := writer.CommandScanner()
 
 	if err == nil {
 		t.Error("Expected error when replaying non-existent file, got nil")
@@ -152,9 +170,17 @@ func TestWalWriter_PersistenceAcrossRestarts(t *testing.T) {
 		defer writer.Close()
 
 		var replayed []Command
-		err = writer.Replay(func(cmd Command) {
-			replayed = append(replayed, cmd)
-		})
+		cmdScanner, err := writer.CommandScanner()
+
+		if err != nil {
+			t.Fatal("Failed to create command scanner")
+		}
+
+		defer cmdScanner.Close()
+
+		for cmdScanner.Scan() {
+			replayed = append(replayed, cmdScanner.Command())
+		}
 
 		if err != nil {
 			t.Fatalf("Failed to replay WAL: %v", err)
@@ -202,7 +228,7 @@ func TestWalWriter_MixedOperations(t *testing.T) {
 		NewSetCommand("user:2", "bob"),
 		NewSetCommand("counter", "1"),
 		NewSetCommand("counter", "2"), // Update
-		NewDeleteCommand("user:1"),     // Delete
+		NewDeleteCommand("user:1"),    // Delete
 		NewSetCommand("user:3", "charlie"),
 	}
 
@@ -219,9 +245,17 @@ func TestWalWriter_MixedOperations(t *testing.T) {
 	defer reader.Close()
 
 	var replayed []Command
-	err = reader.Replay(func(cmd Command) {
-		replayed = append(replayed, cmd)
-	})
+	cmdScanner, err := reader.CommandScanner()
+
+	if err != nil {
+		t.Fatal("Failed to create command scanner")
+	}
+
+	defer cmdScanner.Close()
+
+	for cmdScanner.Scan() {
+		replayed = append(replayed, cmdScanner.Command())
+	}
 
 	if err != nil {
 		t.Fatalf("Failed to replay WAL: %v", err)
@@ -271,9 +305,19 @@ func TestWalWriter_LargeNumberOfCommands(t *testing.T) {
 	defer reader.Close()
 
 	count := 0
-	err = reader.Replay(func(cmd Command) {
-		count++
-	})
+	cmdScanner, err := reader.CommandScanner()
+
+	if err != nil {
+		t.Fatal("Failed to create command scanner")
+	}
+
+	defer cmdScanner.Close()
+
+	for cmdScanner.Scan() {
+		count += 1
+	}
+
+	err = cmdScanner.Err()
 
 	if err != nil {
 		t.Fatalf("Failed to replay large WAL: %v", err)
@@ -342,9 +386,20 @@ func TestWalWriter_WhitespaceHandling(t *testing.T) {
 	defer reader.Close()
 
 	var replayed []Command
-	err = reader.Replay(func(cmd Command) {
-		replayed = append(replayed, cmd)
-	})
+
+	cmdScanner, err := reader.CommandScanner()
+
+	if err != nil {
+		t.Fatal("Failed to create command scanner")
+	}
+
+	defer cmdScanner.Close()
+
+	for cmdScanner.Scan() {
+		replayed = append(replayed, cmdScanner.Command())
+	}
+
+	err = cmdScanner.Err()
 
 	if err != nil {
 		t.Fatalf("Failed to replay WAL: %v", err)
