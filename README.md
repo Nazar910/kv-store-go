@@ -1,6 +1,7 @@
 # KV Store - Key-Value In-Memory Database in Go
 
-A functional key-value store database with persistence, LRU eviction, and TTL support.
+This is a learning project for me to practice programming in Go and to get a grasp of what it takes to build
+a really simple In-Memory Key-Value store.
 
 ## Features
 
