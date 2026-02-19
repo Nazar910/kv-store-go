@@ -22,12 +22,13 @@ func NewServer(store *store.Store) *Server {
 }
 
 type SetReq struct {
-	Key   string `json:"key" validate:"required,min=1,max=100"`
-	Value string `json:"value" validate:"required,min=1,max=200"`
+	Key   string `json:"key"`
+	Value string `json:"value"`
+	Ttl   int    `json:"ttl"`
 }
 
 type GetReq struct {
-	Key string `json:"key" validate:"required,min=1,max=100"`
+	Key string `json:"key"`
 }
 
 type GetRes struct {
@@ -46,6 +47,20 @@ func (s *Server) Init() {
 			return
 		}
 		s.store.Set(setReq.Key, setReq.Value)
+		_, err := w.Write([]byte("OK"))
+
+		if err != nil {
+			fmt.Printf("Failed to write to response because of err: %v\n", err)
+		}
+	})
+	s.mutex.HandleFunc("POST /setex", func(w http.ResponseWriter, r *http.Request) {
+		var setexReq SetReq
+		if err := json.NewDecoder(r.Body).Decode(&setexReq); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		s.store.SetEx(setexReq.Key, setexReq.Value, setexReq.Ttl)
 		_, err := w.Write([]byte("OK"))
 
 		if err != nil {

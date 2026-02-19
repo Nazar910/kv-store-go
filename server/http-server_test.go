@@ -90,6 +90,21 @@ func TestHttpServer(t *testing.T) {
 		assertEqual(t, storedValue, "bar123")
 	})
 
+	t.Run("setex", func(t *testing.T) {
+		server, store := setupApp()
+		defer server.Close()
+		setReq := &SetReq{Key: "foo", Value: "bar123", Ttl: 30}
+
+		var buff bytes.Buffer
+		err := json.NewEncoder(&buff).Encode(setReq)
+		assertNoError(t, err)
+
+		makeRequest(t, server.URL+"/setex", buff)
+
+		storedValue, _ := store.Get("foo")
+		assertEqual(t, storedValue, "bar123")
+	})
+
 	t.Run("get", func(t *testing.T) {
 		server, store := setupApp()
 		defer server.Close()
