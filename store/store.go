@@ -102,7 +102,11 @@ func (s *Store) Get(key string) (string, error) {
 	}
 
 	if result.IsExpired(s.clock.Now()) {
-		// will need to delete the expired key
+		node := s.lruMap[key]
+		s.lruList.Remove(node)
+		delete(s.lruMap, key)
+		delete(s.memoryStore, key)
+
 		return "", nil
 	}
 
