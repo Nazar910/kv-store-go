@@ -1,30 +1,45 @@
-# KV Store - Key-Value Database in Go
+# KV Store - Key-Value In-Memory Database in Go
 
-A learning project to build a key-value store database from scratch.
+A functional key-value store database with persistence, LRU eviction, and TTL support.
+
+## Features
+
+- **In-Memory Storage**: Fast access to data using a thread-safe map.
+- **Persistence (WAL)**: Write-Ahead Logging ensures data durability across restarts.
+- **Snapshots**: Periodic state snapshots for faster recovery and log truncation.
+- **LRU Eviction**: Automatic memory management by evicting Least Recently Used items.
+- **TTL Support**: Set expiration times for keys.
+- **HTTP API**: Simple RESTful interface for interacting with the store.
 
 ## Project Structure
 
 ```
 kv-store-go/
-├── PROJECT_PLAN.txt    # Complete implementation plan
-├── store/              # Core KV store implementation
-│   ├── store.go        # Main store logic
-│   └── store_test.go   # Unit tests
-├── cmd/                # CLI application
-│   └── main.go         # Entry point
-└── go.mod              # Go module file
+├── cmd/                # Entry point (Main application)
+├── store/              # Core KV store logic (LRU, TTL, State)
+├── wal/                # Write-Ahead Log & Snapshotting
+├── server/             # HTTP Server & Handlers
+├── types/              # Common data structures
+├── data/               # Persistent storage files (WAL & Snapshots)
+└── PROJECT_PLAN.txt    # Implementation roadmap
 ```
+
+## API Usage
+
+The server runs on port `3001` by default.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET`  | `/get?key=foo` | Retrieve a value |
+| `POST` | `/set` | Store a value (JSON body: `{"key": "foo", "value": "bar"}`) |
+| `POST` | `/setex` | Store with TTL (JSON body: `{"key": "foo", "value": "bar", "ttl": 60}`) |
+| `DELETE`| `/delete?key=foo` | Remove a key |
 
 ## Getting Started
 
-See `PROJECT_PLAN.txt` for the complete phased implementation plan.
-
-### Phase 1: Basic In-Memory Store
-Start by implementing the core operations in `store/store.go`
-
 ### Run Tests
 ```bash
-go test ./store -v
+go test ./... -v
 ```
 
 ### Run Application
