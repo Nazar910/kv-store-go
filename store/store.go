@@ -53,6 +53,7 @@ func (s *Store) Set(key, value string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	s.walWriter.Append(wal.NewSetCommand(key, value))
 	return s.baseSet(key, value, time.Time{}) // zero value means no expiry
 }
 
@@ -61,12 +62,12 @@ func (s *Store) SetEx(key, value string, ttl int) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	s.walWriter.Append(wal.NewSetCommand(key, value))
 	return s.baseSet(key, value, s.clock.Now().Add(time.Duration(ttl)*time.Second))
 }
 
 // Private set implementation (the callee should handle locks itself)
 func (s *Store) baseSet(key string, value string, expiresAt time.Time) error {
-	s.walWriter.Append(wal.NewSetCommand(key, value))
 	_, exists := s.memoryStore[key]
 
 	if !exists && s.AtCapacity() {
@@ -172,30 +173,27 @@ func (s *Store) Load() error {
 
 	s.memoryStore = data
 
-	fmt.Println("Catching up with WAL if any...")
-
-	commandScanner, err := s.walWriter.CommandScanner()
-
-	if err != nil {
-		return err
+	// need to populate lruList and lruMap also
+	for key := range data {
+		elem := s.lruList.PushFront(key)
+		s.lruMap[key] = elem
 	}
 
-	defer commandScanner.Close()
+	fmt.Println("Catching up with WAL if any...")
 
-	for commandScanner.Scan() {
-		cmd := commandScanner.Command()
-
+	// consider switching to a custom scanner
+	// in case any perf issues
+	for cmd := range s.walWriter.CommandSeq() {
 		switch cmd.Op {
 		case wal.OpSET:
-			s.memoryStore[cmd.Key] = &types.Entry{
-				Value: cmd.Value,
-				// setting a default ttl of 30 sec upon WALL restore
-				ExpiresAt: s.clock.Now().Add(30 * time.Second),
-			}
+			// setting a default ttl of 30 sec upon WALL restore
+			s.baseSet(cmd.Key, cmd.Value, s.clock.Now().Add(30*time.Second))
 		case wal.OpDELETE:
-			delete(s.memoryStore, cmd.Key)
+			if node, ok := s.lruMap[cmd.Key]; ok {
+				s.baseDelete(cmd.Key, node)
+			}
 		}
 	}
 
-	return commandScanner.Err()
+	return nil
 }

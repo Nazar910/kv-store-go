@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"fmt"
+	"iter"
 	"kv-store/types"
 	"kv-store/wal"
 	"reflect"
@@ -59,9 +60,11 @@ func AssertEqual[T any](tb testing.TB, got T, want T) {
 
 type mockWalManager struct{}
 
-func (m *mockWalManager) Append(wal.Command)                           {}
-func (m *mockWalManager) CommandScanner() (*wal.CommandScanner, error) { return nil, nil }
-func (m *mockWalManager) Truncate() error                              { return nil }
+func (m *mockWalManager) Append(wal.Command) {}
+func (w *mockWalManager) CommandSeq() iter.Seq[wal.Command] {
+	return func(yield func(wal.Command) bool) {}
+}
+func (m *mockWalManager) Truncate() error { return nil }
 
 type mockSnapshotter struct{}
 

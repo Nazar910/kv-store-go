@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"iter"
 	"kv-store/store"
 	"kv-store/types"
 	"kv-store/wal"
@@ -32,9 +33,9 @@ func assertEqual[T any](t *testing.T, got T, want T) {
 
 type wallMock struct{}
 
-func (w wallMock) Append(cmd wal.Command)                       {}
-func (w wallMock) CommandScanner() (*wal.CommandScanner, error) { return nil, nil }
-func (w wallMock) Truncate() error                              { return nil }
+func (w wallMock) Append(cmd wal.Command)            {}
+func (w wallMock) CommandSeq() iter.Seq[wal.Command] { return func(yield func(wal.Command) bool) {} }
+func (w wallMock) Truncate() error                   { return nil }
 
 type mockSnapshotter struct{}
 

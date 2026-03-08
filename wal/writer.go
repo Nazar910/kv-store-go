@@ -3,7 +3,7 @@ package wal
 import (
 	"bufio"
 	"fmt"
-	"io"
+	"iter"
 	"os"
 	"strconv"
 	"strings"
@@ -11,7 +11,7 @@ import (
 
 type WalManager interface {
 	Append(cmd Command)
-	CommandScanner() (*CommandScanner, error)
+	CommandSeq() iter.Seq[Command]
 	Truncate() error
 }
 
@@ -109,65 +109,44 @@ func (w *WalWriter) Append(cmd Command) {
 	writer.Flush()
 }
 
-type CommandScanner struct {
-	scanner *bufio.Scanner
-	lastCmd Command
-	lastErr error
-	closer  io.Closer
-}
-
-func (c *CommandScanner) Scan() bool {
-	for c.scanner.Scan() {
-		line := c.scanner.Text()
-
-		if line == "" {
-			continue
-		}
-
-		cmd, err := DeserializeCmd(line)
+func (w *WalWriter) CommandSeq() iter.Seq[Command] {
+	return func(yield func(Command) bool) {
+		file, err := os.Open(w.filePath)
 
 		if err != nil {
-			c.lastErr = fmt.Errorf("Failed to parse WAL line: %s", line)
-			return false
+			panic(fmt.Sprintf("wal-error: non-existing file %s", w.filePath))
 		}
 
-		c.lastCmd = cmd
-		return true
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			if line == "" {
+				continue
+			}
+
+			cmd, err := DeserializeCmd(line)
+
+			if err != nil {
+				// at the moment it seems appropriate to panic when
+				// got issues with command deserialization
+				// consider add Command wrapper to have both cmd and error
+				// for callee to check
+				panic(fmt.Sprintf("wal-error: read error %v", err))
+			}
+
+			if !yield(cmd) {
+				return
+			}
+		}
 	}
-
-	c.lastErr = c.scanner.Err()
-
-	return false
-
 }
 
-func (c *CommandScanner) Command() Command {
-	return c.lastCmd
-}
-
-func (c *CommandScanner) Err() error {
-	return c.lastErr
-}
-
-func (c *CommandScanner) Close() error {
-	return c.closer.Close()
-}
-
-func (w *WalWriter) CommandScanner() (*CommandScanner, error) {
-	file, err := os.Open(w.filePath)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &CommandScanner{
-		scanner: bufio.NewScanner(file),
-		closer:  file,
-	}, nil
-}
-
-func (w *WalWriter) Close() {
-	w.file.Close()
+func (w *WalWriter) Close() error {
+	return w.file.Close()
 }
 
 func (w *WalWriter) Truncate() error {
