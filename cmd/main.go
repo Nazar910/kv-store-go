@@ -12,10 +12,6 @@ import (
 	"time"
 )
 
-type RealClock struct{}
-
-func (c *RealClock) Now() time.Time { return time.Now() }
-
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -29,7 +25,7 @@ func main() {
 
 	snapshotter := wal.NewSnapshotter(wal.SNAPSHOT_FILE_NAME)
 
-	s := store.New(&RealClock{}, writer, snapshotter, &store.Config{Capacity: 100})
+	s := store.New(writer, snapshotter, &store.Config{Capacity: 100})
 
 	err = s.Load()
 

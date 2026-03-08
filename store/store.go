@@ -13,10 +13,6 @@ type Config struct {
 	Capacity int
 }
 
-type Clock interface {
-	Now() time.Time
-}
-
 // Store represents an in-memory key-value store
 type Store struct {
 	memoryStore types.StoreMap
@@ -27,16 +23,16 @@ type Store struct {
 
 	walWriter   wal.WalManager
 	snapshotter wal.Snapshotter
-	clock       Clock
 }
 
+var nowFunc = time.Now
+
 // New creates a new Store instance
-func New(clock Clock, walWriter wal.WalManager, snapshotter wal.Snapshotter, config *Config) *Store {
+func New(walWriter wal.WalManager, snapshotter wal.Snapshotter, config *Config) *Store {
 	return &Store{
 		memoryStore: make(types.StoreMap),
 		walWriter:   walWriter,
 		snapshotter: snapshotter,
-		clock:       clock,
 
 		lruList:  list.New(),
 		lruMap:   make(map[string]*list.Element),
@@ -63,7 +59,7 @@ func (s *Store) SetEx(key, value string, ttl int) error {
 	defer s.mutex.Unlock()
 
 	s.walWriter.Append(wal.NewSetCommand(key, value))
-	return s.baseSet(key, value, s.clock.Now().Add(time.Duration(ttl)*time.Second))
+	return s.baseSet(key, value, nowFunc().Add(time.Duration(ttl)*time.Second))
 }
 
 // Private set implementation (the callee should handle locks itself)
@@ -102,7 +98,7 @@ func (s *Store) Get(key string) (string, error) {
 		return "", nil
 	}
 
-	if result.IsExpired(s.clock.Now()) {
+	if result.IsExpired(nowFunc()) {
 		node := s.lruMap[key]
 		s.lruList.Remove(node)
 		delete(s.lruMap, key)
@@ -146,7 +142,7 @@ func (s *Store) Exists(key string) bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	entry, ok := s.memoryStore[key]
-	return ok && !entry.IsExpired(s.clock.Now())
+	return ok && !entry.IsExpired(nowFunc())
 }
 
 func (s *Store) CreateSnapshot() error {
@@ -187,7 +183,7 @@ func (s *Store) Load() error {
 		switch cmd.Op {
 		case wal.OpSET:
 			// setting a default ttl of 30 sec upon WALL restore
-			s.baseSet(cmd.Key, cmd.Value, s.clock.Now().Add(30*time.Second))
+			s.baseSet(cmd.Key, cmd.Value, nowFunc().Add(30*time.Second))
 		case wal.OpDELETE:
 			if node, ok := s.lruMap[cmd.Key]; ok {
 				s.baseDelete(cmd.Key, node)
