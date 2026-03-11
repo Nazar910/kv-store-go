@@ -6,6 +6,7 @@ import (
 	"kv-store/server"
 	"kv-store/store"
 	"kv-store/wal"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,8 +20,7 @@ func main() {
 	writer, err := wal.NewWalWriter(wal.FILE_NAME)
 
 	if err != nil {
-		fmt.Printf("Error while creating WAL writer: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error while creating WAL writer: %v\n", err)
 	}
 
 	snapshotter := wal.NewSnapshotter(wal.SNAPSHOT_FILE_NAME)
@@ -30,8 +30,7 @@ func main() {
 	err = s.Load()
 
 	if err != nil {
-		fmt.Printf("Error while populating store: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error while populating store: %v\n", err)
 	}
 
 	httpServer := server.NewServer(s)
