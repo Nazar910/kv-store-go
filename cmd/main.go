@@ -33,6 +33,8 @@ func main() {
 		log.Fatalf("Error while populating store: %v\n", err)
 	}
 
+	s.EnableCleanup()
+
 	httpServer := server.NewServer(s)
 
 	httpServer.Init()
@@ -60,6 +62,7 @@ func main() {
 	}
 
 	s.CreateSnapshot()
+	s.Close()
 	writer.Close()
 
 	fmt.Println("Shutdown complete")

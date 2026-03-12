@@ -23,12 +23,17 @@ type Store struct {
 
 	walWriter   wal.WalManager
 	snapshotter wal.Snapshotter
+
+	closech chan struct{}
 }
 
 var nowFunc = time.Now
 
+var CleanUpCheckInterval = 5 * time.Second
+
 // New creates a new Store instance
 func New(walWriter wal.WalManager, snapshotter wal.Snapshotter, config *Config) *Store {
+
 	return &Store{
 		memoryStore: make(types.StoreMap),
 		walWriter:   walWriter,
@@ -38,6 +43,22 @@ func New(walWriter wal.WalManager, snapshotter wal.Snapshotter, config *Config) 
 		lruMap:   make(map[string]*list.Element),
 		capacity: config.Capacity,
 	}
+}
+
+// Start housekeeping goroutine which will clean stale records
+func (s *Store) EnableCleanup() {
+	closech := make(chan struct{})
+	s.closech = closech
+	go func() {
+		for {
+			select {
+			case <-closech:
+				return
+			case <-time.After(CleanUpCheckInterval):
+				fmt.Println("Will do real cleanup someday")
+			}
+		}
+	}()
 }
 
 func (s *Store) AtCapacity() bool {
@@ -157,6 +178,12 @@ func (s *Store) CreateSnapshot() error {
 	}
 
 	return s.walWriter.Truncate()
+}
+
+func (s *Store) Close() {
+	if s.closech != nil {
+		close(s.closech)
+	}
 }
 
 func (s *Store) Load() error {
